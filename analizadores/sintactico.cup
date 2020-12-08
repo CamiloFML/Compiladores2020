@@ -1,0 +1,142 @@
+//-------- [1] PRIMERA SECCION 'Declaraciones preliminares'
+import java_cup.runtime.*;
+import java.io.*;
+import java.util.*;
+import org.fusesource.jansi.*;
+import  org.fusesource.jansi.*;
+
+parser code {:
+    Hashtable <String,Integer> intVars;
+    GUI g;
+    boolean execute=true;
+    public void pushVar(String varName,int value){
+        intVars.put(varName,value);
+        g.updateVarList(intVars);
+    }
+    public Integer getValue(String id){//obtiene el valor de una variable si es que existe
+        Integer i= intVars.get(id);
+        return new Integer(i);
+    }
+:}
+//codigo que se ejecuta al iniciar
+init with {:
+    AnsiConsole.systemInstall();
+    intVars=new Hashtable<String,Integer>();
+    g=new GUI();
+    System.out.println("==] AZ-2016 [==");
+    System.out.println(Ansi.ansi().render("@|yellow Antes de comenzar|@"));
+    System.out.println(Ansi.ansi().render("- Para comenzar, debe escribir @|cyan inicio|@ ."));
+    System.out.println(Ansi.ansi().render("- Para finalizar, debe escribir @|cyan fin|@ ."));
+    System.out.println(Ansi.ansi().render("- Cada instruccion debe terminar con @|cyan ;|@ (excepto @|cyan inicio|@ y @|cyan fin|@)."));
+    System.out.println("- El uso de variables es \"case sensitive\" (a!=A)");
+    System.out.println(Ansi.ansi().render("Instrucciones disponibles:"));
+    System.out.println(Ansi.ansi().render("    @|cyan Asignacion  :|@ @|green variable = valor;|@"));
+    System.out.println(Ansi.ansi().render("    @|cyan Escribir    :|@ @|green escribir(\"texto\");|@"));
+    System.out.println(Ansi.ansi().render("                  @|green escribir(variable);|@"));
+    System.out.println(Ansi.ansi().render("    @|cyan Lectura     :|@ @|green leer(variable);|@"));
+    System.out.println(Ansi.ansi().render("@|yellow                   Numero maximo de digitos permitidos es 10|@"));
+    System.out.println(Ansi.ansi().render("    @|cyan Condicional :|@ @|green si condicion entonces instruccion;|@"));
+    System.out.println(Ansi.ansi().render("Para mostrar una tabla con las variables definidas escriba @|cyan vars|@."));
+    System.out.println(Ansi.ansi().render("    "));
+    System.out.println("Preparado para recibir instrucciones");
+:}
+
+//-------- [2] SEGUNDA SECCION 'Declaracion de terminales y no-terminales'
+    terminal          MENOS;
+    terminal          MAS;
+    terminal          DIV;
+    terminal          POR;
+    terminal          LPAREN;
+    terminal          RPAREN;
+    terminal          FIN;
+    terminal          SI;
+    terminal          ENTONCES;
+    terminal          LEER;
+    terminal          MENOR; 
+    terminal          MAYOR;
+    terminal          PCOMA;
+    terminal          TEXTO;
+    terminal          ENTER;
+    terminal          ASIGN;
+    terminal          IGUAL;
+    terminal          INICIO;
+    terminal  String  ID;
+    terminal  Integer CONST;
+    terminal          ESCRIBIR;
+    terminal          VENTANA;
+non terminal          S;
+non terminal          inst;
+non terminal          inst_aux;
+non terminal          inst_leer;
+non terminal          inst_escribir;
+non terminal          inst_si;
+non terminal          inst_asig;
+non terminal          cond;
+non terminal  Integer exp;
+
+//-------- [3] TERCERA SECCION 'Precedencia y asociatividad de terminales'
+
+precedence left MAS, MENOS; 
+precedence left POR, DIV;
+
+//-------- [4] CUARTA SECCION 'Gramatica'
+
+
+start with S;//se indica la produccion inicial
+
+S               ::=INICIO inst   ;
+
+inst            ::= inst inst 
+                | inst_iniciar
+                | inst_meter
+                | inst_sacar
+                | inst_mirar
+                | inst_dato   
+                | {:g.mostrar_si();:}VENTANA inst
+                |{:System.exit(0);:} FIN
+;
+
+inst_leer       ::= LEER LPAREN ID:var RPAREN 
+                    {:
+                        if(execute){
+                            System.out.print(Ansi.ansi().render("@|green ingrese valor para "+var+": |@"));
+                            java.util.Scanner s=new java.util.Scanner(System.in);
+                            String x=s.next();
+                            s.nextLine();
+                            Integer i=new Integer(Integer.parseInt(x));
+                            pushVar(var,i);
+                        }
+                    :}
+                    PCOMA;
+
+inst_escribir   ::= ESCRIBIR LPAREN TEXTO:t RPAREN
+                    {: if(execute) System.out.println( Ansi.ansi().render("@|green "+t+"|@") );:} 
+                    PCOMA
+                  | ESCRIBIR LPAREN exp:e RPAREN
+                    {: if(execute) System.out.println( Ansi.ansi().render("@|green "+e+"|@") ); :}
+                    PCOMA                   
+;
+
+inst_asig       ::= ID:var ASIGN exp:e
+                    {: if(execute) pushVar(var,e);:} 
+                    PCOMA
+;
+
+inst_si         ::= SI cond:c{:execute=true;if(c==false){execute=false;};:} ENTONCES inst_aux {:execute=true;:}
+                    {:
+                     // if(c.booleanValue()==true){RESULT=1;System.out.println("A");}else{RESULT=null;System.out.println("A");}
+                    :} 
+;
+
+inst_aux        ::= inst_asig
+                    |inst_escribir
+                    |inst_leer;
+
+
+exp             ::=   exp:e1 MAS exp:e2   {:RESULT=(e1.intValue()+e2.intValue());:}
+                    | exp:e1 POR exp:e2   {:RESULT=(e1.intValue()*e2.intValue());:}
+                    | exp:e1 MENOS exp:e2 {:RESULT=(e1.intValue()-e2.intValue());:}
+                    | exp:e1 DIV exp:e2   {:RESULT=(e1.intValue()/e2.intValue());:}
+                    | ID:id               {:RESULT=getValue(id);:}        
+                    | CONST:v             {:RESULT=v;:}
+;

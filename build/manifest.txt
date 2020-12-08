@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Created-By: 1.7.0_79 (Pancho)
+Main-Class: Test
+Class-Path: ..\lib\java-cup-11b.jar ..\lib\jflex-1.6.1.jar ..\lib\jansi.jar
